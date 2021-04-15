@@ -3,7 +3,7 @@
 Pod::Spec.new do |s|
 
   s.name         = 'FBSDKCoreKit'
-  s.version      = '8.2.0'
+  s.version      = '9.2.0'
   s.summary      = 'Official Facebook SDK for iOS to access Facebook Platform core features'
 
   s.description  = <<-DESC
@@ -29,14 +29,6 @@ Pod::Spec.new do |s|
   s.ios.weak_frameworks = 'Accelerate', 'Accounts', 'AdSupport', 'Social', 'Security', 'StoreKit', 'QuartzCore', 'CoreGraphics', 'UIKit', 'Foundation', 'AudioToolbox'
   s.tvos.weak_frameworks = 'CoreLocation', 'Security', 'QuartzCore', 'CoreGraphics', 'UIKit', 'Foundation', 'AudioToolbox'
 
-  # This excludes `FBSDKCoreKit/FBSDKCoreKit/Internal_NoARC/` folder, as that folder includes only `no-arc` files.
-  s.requires_arc = ['FBSDKCoreKit/FBSDKCoreKit/*',
-                    'FBSDKCoreKit/FBSDKCoreKit/AppEvents/**/*',
-                    'FBSDKCoreKit/FBSDKCoreKit/AppLink/**/*',
-                    'Sources/FBSDKCoreKit_Basics/**/*',
-                    'FBSDKCoreKit/FBSDKCoreKit/GraphAPI/*',
-                    'FBSDKCoreKit/FBSDKCoreKit/Internal/**/*']
-
   s.default_subspecs = 'Core', 'Basics'
   s.swift_version = '5.0'
   s.pod_target_xcconfig = {
@@ -58,9 +50,7 @@ Pod::Spec.new do |s|
                        'FBSDKCoreKit/FBSDKCoreKit/include/**/*',
                        'FBSDKCoreKit/FBSDKCoreKit/Swift/Exports.swift'
     ss.source_files = 'FBSDKCoreKit/FBSDKCoreKit/**/*.{h,hpp,m,mm,swift}'
-    ss.public_header_files = 'FBSDKCoreKit/FBSDKCoreKit/Internal/**/*.h',
-                             'FBSDKCoreKit/FBSDKCoreKit/AppEvents/Internal/**/*.h',
-                             'FBSDKCoreKit/FBSDKCoreKit/*.h',
+    ss.public_header_files = 'FBSDKCoreKit/FBSDKCoreKit/*.h',
                              'FBSDKCoreKit/FBSDKCoreKit/AppEvents/*.h',
                              'FBSDKCoreKit/FBSDKCoreKit/AppLink/*.h',
                              'FBSDKCoreKit/FBSDKCoreKit/AppLink/Resolver/*.h',

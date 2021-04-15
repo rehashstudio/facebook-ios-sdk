@@ -172,7 +172,7 @@
     [alertController addAction:[UIAlertAction actionWithTitle:cancelTitle style:UIAlertActionStyleCancel handler:NULL]];
     [parentViewController presentViewController:alertController animated:YES completion:NULL];
   } else {
-    FBSDKDeviceLoginViewController *vc = [[FBSDKDeviceLoginViewController alloc] init];
+    FBSDKDeviceLoginViewController *vc = [FBSDKDeviceLoginViewController new];
     vc.delegate = self;
     vc.permissions = self.permissions;
     vc.redirectURL = self.redirectURL;
@@ -236,9 +236,9 @@
                                                                      parameters:nil
                                                                           flags:FBSDKGraphRequestFlagDisableErrorRecovery];
       [request startWithCompletionHandler:^(FBSDKGraphRequestConnection *connection, id result, NSError *error) {
-        NSString *userID = [FBSDKTypeUtility stringValue:result[@"id"]];
+        NSString *userID = [FBSDKTypeUtility coercedToStringValue:result[@"id"]];
         if (!error && [[FBSDKAccessToken currentAccessToken].userID isEqualToString:userID]) {
-          self->_userName = [FBSDKTypeUtility stringValue:result[@"name"]];
+          self->_userName = [FBSDKTypeUtility coercedToStringValue:result[@"name"]];
           self->_userID = userID;
         }
       }];

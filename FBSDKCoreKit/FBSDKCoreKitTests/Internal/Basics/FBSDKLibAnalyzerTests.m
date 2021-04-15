@@ -23,9 +23,9 @@
 
 @interface FBSDKLibAnalyzer ()
 
-+ (NSArray<NSString *> *)getClassNames:(NSArray<NSString *> *)prefixes
-                            frameworks:(NSArray<NSString *> *)frameworks;
-+ (NSString *)getAddress:(NSString *)callstackEntry;
++ (NSArray<NSString *> *)_getClassNames:(NSArray<NSString *> *)prefixes
+                             frameworks:(NSArray<NSString *> *)frameworks;
++ (NSString *)_getAddress:(NSString *)callstackEntry;
 
 @end
 
@@ -36,6 +36,8 @@
 
 - (void)setUp
 {
+  [super setUp];
+
   [FBSDKLibAnalyzer initialize];
 }
 
@@ -46,23 +48,18 @@
                                       @"FBSDKLoginKit",
                                       @"FBSDKShareKit",
                                       @"FBSDKTVOSKit"];
-  id analyzerMock = [OCMockObject niceMockForClass:[FBSDKLibAnalyzer class]];
-  [[analyzerMock expect] getClassNames:[OCMArg any] frameworks:[OCMArg any]];
-
-  NSDictionary *result = [FBSDKLibAnalyzer getMethodsTable:prefixes frameworks:frameworks];
-  XCTAssertNotNil(result);
-
-  [analyzerMock verify];
+  NSDictionary *result = [FBSDKLibAnalyzer.class getMethodsTable:prefixes frameworks:frameworks];
+  XCTAssertTrue(result.count > 0, "Should find at least one method declared in the provided frameworks");
 }
 
 - (void)testGetAddress
 {
   NSString *callstackEntry = @"0 CoreFoundation 0x0000000104cbd02e __exceptionPreprocess + 350";
-  NSString *result1 = [FBSDKLibAnalyzer getAddress:callstackEntry];
+  NSString *result1 = [FBSDKLibAnalyzer _getAddress:callstackEntry];
   XCTAssertTrue([result1 isEqualToString:@"0x0000000104cbd02e"]);
 
   callstackEntry = @"0 CoreFoundation 0000000104cbd02e __exceptionPreprocess + 350";
-  NSString *result2 = [FBSDKLibAnalyzer getAddress:callstackEntry];
+  NSString *result2 = [FBSDKLibAnalyzer _getAddress:callstackEntry];
   XCTAssertNil(result2);
 }
 

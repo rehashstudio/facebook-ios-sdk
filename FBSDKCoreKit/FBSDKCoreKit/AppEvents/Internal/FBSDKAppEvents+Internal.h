@@ -22,9 +22,18 @@
  #import <FBSDKCoreKit/FBSDKAppEvents.h>
 #endif
 
+#import <UIKit/UIApplication.h>
+
 #import "FBSDKAppEventsUtility.h"
 
-@class FBSDKGraphRequest;
+@protocol FBSDKGateKeeperManaging;
+@protocol FBSDKAppEventsConfigurationProviding;
+@protocol FBSDKServerConfigurationProviding;
+@protocol FBSDKGraphRequestProviding;
+@protocol FBSDKDataPersisting;
+@protocol FBSDKFeatureChecking;
+@protocol FBSDKLogging;
+@protocol FBSDKSettings;
 
 // Internally known event names
 
@@ -164,7 +173,6 @@ FOUNDATION_EXPORT NSString *const FBSDKAppEventsNativeLoginDialogEndTime;
 FOUNDATION_EXPORT NSString *const FBSDKAppEventsWebLoginE2E;
 
 FOUNDATION_EXPORT NSString *const FBSDKAppEventNameFBSDKLikeButtonImpression;
-FOUNDATION_EXPORT NSString *const FBSDKAppEventNameFBSDKLoginButtonImpression;
 FOUNDATION_EXPORT NSString *const FBSDKAppEventNameFBSDKSendButtonImpression;
 FOUNDATION_EXPORT NSString *const FBSDKAppEventNameFBSDKShareButtonImpression;
 FOUNDATION_EXPORT NSString *const FBSDKAppEventNameFBSDKLiveStreamingButtonImpression;
@@ -202,6 +210,19 @@ FOUNDATION_EXPORT NSString *const FBSDKAppEventsWKWebViewMessagesPixelIDKey;
 @interface FBSDKAppEvents (Internal)
 
 @property (class, nonatomic, readonly, strong) FBSDKAppEvents *singleton;
+
++ (void)setCanLogEvents;
+
++ (void)setApplicationState:(UIApplicationState)state;
+
++ (void)configureWithGateKeeperManager:(Class<FBSDKGateKeeperManaging>)gateKeeperManager
+        appEventsConfigurationProvider:(Class<FBSDKAppEventsConfigurationProviding>)appEventsConfigurationProvider
+           serverConfigurationProvider:(Class<FBSDKServerConfigurationProviding>)serverConfigurationProvider
+                  graphRequestProvider:(id<FBSDKGraphRequestProviding>)provider
+                        featureChecker:(id<FBSDKFeatureChecking>)featureChecker
+                                 store:(id<FBSDKDataPersisting>)store
+                                logger:(Class<FBSDKLogging>)logger
+                              settings:(id<FBSDKSettings>)settings;
 
 + (void)logInternalEvent:(FBSDKAppEventName)eventName
       isImplicitlyLogged:(BOOL)isImplicitlyLogged;

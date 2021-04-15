@@ -17,7 +17,6 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #import "FBSDKUserDataStore.h"
-#import "FBSDKUserDataStore+Internal.h"
 
 #import "FBSDKBasicUtility.h"
 #import "FBSDKTypeUtility.h"
@@ -53,7 +52,7 @@ FBSDKAppEventUserDataType FBSDKAppEventCountry = @"country";
   serialQueue = dispatch_queue_create("com.facebook.appevents.UserDataStore", DISPATCH_QUEUE_SERIAL);
   hashedUserData = [FBSDKUserDataStore initializeUserData:FBSDKUserDataKey];
   internalHashedUserData = [FBSDKUserDataStore initializeUserData:FBSDKInternalUserDataKey];
-  enabledRules = [[NSMutableSet alloc] init];
+  enabledRules = [NSMutableSet new];
 }
 
 + (void)setUserEmail:(nullable NSString *)email
@@ -67,7 +66,7 @@ FBSDKAppEventUserDataType FBSDKAppEventCountry = @"country";
                  zip:(nullable NSString *)zip
              country:(nullable NSString *)country
 {
-  NSMutableDictionary *ud = [[NSMutableDictionary alloc] init];
+  NSMutableDictionary *ud = [NSMutableDictionary new];
   if (email) {
     [FBSDKTypeUtility dictionary:ud setObject:[FBSDKUserDataStore encryptData:email type:FBSDKAppEventEmail] forKey:FBSDKAppEventEmail];
   }
@@ -162,7 +161,7 @@ FBSDKAppEventUserDataType FBSDKAppEventCountry = @"country";
 {
   __block NSString *hashedUserDataString;
   dispatch_sync(serialQueue, ^{
-    NSMutableDictionary<NSString *, NSString *> *hashedUD = [[NSMutableDictionary alloc] init];
+    NSMutableDictionary<NSString *, NSString *> *hashedUD = [NSMutableDictionary new];
     [hashedUD addEntriesFromDictionary:hashedUserData];
     for (NSString *key in enabledRules) {
       if (internalHashedUserData[key]) {
@@ -209,7 +208,7 @@ FBSDKAppEventUserDataType FBSDKAppEventCountry = @"country";
                                                              error: nil];
   }
   if (!hashedUD) {
-    hashedUD = [[NSMutableDictionary alloc] init];
+    hashedUD = [NSMutableDictionary new];
   }
   return hashedUD;
 }

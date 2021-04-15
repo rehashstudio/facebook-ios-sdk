@@ -22,6 +22,8 @@
  #import <FBSDKGamingServicesKit/FBSDKGamingGroupIntegration.h>
  #import <FBSDKGamingServicesKit/FBSDKGamingImageUploader.h>
  #import <FBSDKGamingServicesKit/FBSDKGamingImageUploaderConfiguration.h>
+ #import <FBSDKGamingServicesKit/FBSDKGamingPayload.h>
+ #import <FBSDKGamingServicesKit/FBSDKGamingPayloadObserver.h>
  #import <FBSDKGamingServicesKit/FBSDKGamingServiceCompletionHandler.h>
  #import <FBSDKGamingServicesKit/FBSDKGamingVideoUploader.h>
  #import <FBSDKGamingServicesKit/FBSDKGamingVideoUploaderConfiguration.h>
@@ -32,6 +34,8 @@
  #import "FBSDKGamingGroupIntegration.h"
  #import "FBSDKGamingImageUploader.h"
  #import "FBSDKGamingImageUploaderConfiguration.h"
+ #import "FBSDKGamingPayload.h"
+ #import "FBSDKGamingPayloadObserver.h"
  #import "FBSDKGamingServiceCompletionHandler.h"
  #import "FBSDKGamingVideoUploader.h"
  #import "FBSDKGamingVideoUploaderConfiguration.h"

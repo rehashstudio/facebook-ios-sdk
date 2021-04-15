@@ -32,12 +32,8 @@
  #import "FBSDKLoginError.h"
  #import "FBSDKLoginManager+Internal.h"
  #import "FBSDKLoginUtility.h"
-
-@interface FBSDKAuthenticationToken (ClaimsProviding)
-
-- (FBSDKAuthenticationTokenClaims *)claims;
-
-@end
+ #import "FBSDKPermission.h"
+ #import "FBSDKProfileFactory.h"
 
 @implementation FBSDKLoginCompletionParameters
 
@@ -65,11 +61,21 @@
   BOOL _performExplicitFallback;
 }
 
+static id<FBSDKProfileProviding> _profileFactory;
+static NSDateFormatter *_dateFormatter;
+
++ (void)initialize
+{
+  if (self == [FBSDKLoginURLCompleter class]) {
+    _profileFactory = [FBSDKProfileFactory new];
+  }
+}
+
 - (instancetype)initWithURLParameters:(NSDictionary *)parameters
                                 appID:(NSString *)appID
 {
   if ((self = [super init]) != nil) {
-    _parameters = [[FBSDKLoginCompletionParameters alloc] init];
+    _parameters = [FBSDKLoginCompletionParameters new];
 
     BOOL hasNonEmptyNonceString = ((NSString *)[FBSDKTypeUtility dictionary:parameters objectForKey:@"nonce" ofType:NSString.class]).length > 0;
     BOOL hasNonEmptyIdTokenString = ((NSString *)[FBSDKTypeUtility dictionary:parameters objectForKey:@"id_token" ofType:NSString.class]).length > 0;
@@ -81,8 +87,15 @@
 
     if (hasNonEmptyAccessTokenString || (hasEitherNonceOrIdToken && !hasBothNonceAndIdToken)) {
       [self setParametersWithDictionary:parameters appID:appID];
-    } else {
+    } else if ([FBSDKTypeUtility dictionary:parameters objectForKey:@"error" ofType:NSString.class] || [FBSDKTypeUtility dictionary:parameters objectForKey:@"error_message" ofType:NSString.class]) {
       [self setErrorWithDictionary:parameters];
+    } else if (hasBothNonceAndIdToken) {
+      // If a nonce is present in the parameter we assume that
+      // user logged in by app switching.
+      // Currently OIDC is not supported for app switching. We
+      // will treat the login attempt as invalid if an ID token
+      // if returned together with nonce.
+      _parameters.error = [FBSDKError errorWithCode:FBSDKLoginErrorUnknown message:@"Invalid server response. Please try to login again"];
     }
   }
   return self;
@@ -127,7 +140,10 @@
     }
     handler(parameters);
   };
-  [[FBSDKAuthenticationTokenFactory new] createTokenFromTokenString:_parameters.authenticationTokenString nonce:nonce completion:completion];
+  [[FBSDKAuthenticationTokenFactory new] createTokenFromTokenString:_parameters.authenticationTokenString
+                                                              nonce:nonce
+                                                        graphDomain:parameters.graphDomain
+                                                         completion:completion];
 }
 
 - (void)setParametersWithDictionary:(NSDictionary *)parameters appID:(NSString *)appID
@@ -144,13 +160,13 @@
 
   // check the string length so that we assign an empty set rather than a set with an empty string
   _parameters.permissions = (grantedPermissionsString.length > 0)
-  ? [NSSet setWithArray:[grantedPermissionsString componentsSeparatedByString:@","]]
+  ? [FBSDKPermission permissionsFromRawPermissions:[NSSet setWithArray:[grantedPermissionsString componentsSeparatedByString:@","]]]
   : NSSet.set;
   _parameters.declinedPermissions = (declinedPermissionsString.length > 0)
-  ? [NSSet setWithArray:[declinedPermissionsString componentsSeparatedByString:@","]]
+  ? [FBSDKPermission permissionsFromRawPermissions:[NSSet setWithArray:[declinedPermissionsString componentsSeparatedByString:@","]]]
   : NSSet.set;
 
-  _parameters.expiredPermissions = [NSSet set];
+  _parameters.expiredPermissions = NSSet.set;
 
   _parameters.appID = appID;
 
@@ -185,21 +201,26 @@
 
 - (void)exchangeNonceForTokenWithHandler:(FBSDKLoginCompletionParametersBlock)handler
 {
+  id<FBSDKGraphRequestConnectionProviding> provider = [FBSDKGraphRequestConnectionFactory new];
+  [self exchangeNonceForTokenWithGraphRequestConnectionProvider:provider handler:handler];
+}
+
+- (void)exchangeNonceForTokenWithGraphRequestConnectionProvider:(nonnull id<FBSDKGraphRequestConnectionProviding>)connectionProvider
+                                                        handler:(nonnull FBSDKLoginCompletionParametersBlock)handler
+{
   if (!handler) {
     return;
   }
 
   NSString *nonce = _parameters.nonceString ?: @"";
-  NSString *appID = [FBSDKSettings appID] ?: @"";
+  NSString *appID = _parameters.appID ?: @"";
 
   if (nonce.length == 0 || appID.length == 0) {
     _parameters.error = [FBSDKError errorWithCode:FBSDKErrorInvalidArgument message:@"Missing required parameters to exchange nonce for access token."];
-
     handler(_parameters);
     return;
   }
 
-  FBSDKGraphRequestConnection *connection = [[FBSDKGraphRequestConnection alloc] init];
   FBSDKGraphRequest *tokenRequest = [[FBSDKGraphRequest alloc]
                                      initWithGraphPath:@"oauth/access_token"
                                      parameters:@{ @"grant_type" : @"fb_exchange_nonce",
@@ -209,24 +230,16 @@
                                      flags:FBSDKGraphRequestFlagDoNotInvalidateTokenOnError
                                      | FBSDKGraphRequestFlagDisableErrorRecovery];
   __block FBSDKLoginCompletionParameters *parameters = _parameters;
+  FBSDKGraphRequestConnection *connection = (FBSDKGraphRequestConnection *)[connectionProvider createGraphRequestConnection];
   [connection addRequest:tokenRequest completionHandler:^(FBSDKGraphRequestConnection *requestConnection,
                                                           id result,
-                                                          NSError *error) {
-                                                            if (!error) {
-                                                              parameters.accessTokenString = result[@"access_token"];
-                                                              NSDate *expirationDate = [NSDate distantFuture];
-                                                              if (result[@"expires_in"] && [result[@"expires_in"] integerValue] > 0) {
-                                                                expirationDate = [NSDate dateWithTimeIntervalSinceNow:[result[@"expires_in"] integerValue]];
-                                                              }
-                                                              parameters.expirationDate = expirationDate;
-
-                                                              NSDate *dataAccessExpirationDate = [NSDate distantFuture];
-                                                              if (result[@"data_access_expiration_time"] && [result[@"data_access_expiration_time"] integerValue] > 0) {
-                                                                dataAccessExpirationDate = [NSDate dateWithTimeIntervalSince1970:[result[@"data_access_expiration_time"] integerValue]];
-                                                              }
-                                                              parameters.dataAccessExpirationDate = dataAccessExpirationDate;
+                                                          NSError *graphRequestError) {
+                                                            if (!graphRequestError) {
+                                                              parameters.accessTokenString = [FBSDKTypeUtility dictionary:result objectForKey:@"access_token" ofType:NSString.class];
+                                                              parameters.expirationDate = [FBSDKLoginURLCompleter expirationDateFromParameters:result];
+                                                              parameters.dataAccessExpirationDate = [FBSDKLoginURLCompleter dataAccessExpirationDateFromParameters:result];
                                                             } else {
-                                                              parameters.error = error;
+                                                              parameters.error = graphRequestError;
                                                             }
 
                                                             handler(parameters);
@@ -246,15 +259,25 @@
     imageURL = [NSURL URLWithString:claims.picture];
   }
 
-  return [[FBSDKProfile alloc] initWithUserID:claims.sub
-                                    firstName:nil
-                                   middleName:nil
-                                     lastName:nil
-                                         name:claims.name
-                                      linkURL:nil
-                                  refreshDate:nil
-                                     imageURL:imageURL
-                                        email:claims.email];
+  NSDate *birthday;
+  if (claims.userBirthday) {
+    [FBSDKLoginURLCompleter.dateFormatter setDateFormat:@"MM/dd/yyyy"];
+    birthday = [FBSDKLoginURLCompleter.dateFormatter dateFromString:claims.userBirthday];
+  }
+
+  return [_profileFactory createProfileWithUserID:claims.sub
+                                        firstName:nil
+                                       middleName:nil
+                                         lastName:nil
+                                             name:claims.name
+                                          linkURL:nil
+                                      refreshDate:nil
+                                         imageURL:imageURL
+                                            email:claims.email
+                                        friendIDs:claims.userFriends
+                                         birthday:birthday
+                                         ageRange:[FBSDKUserAgeRange ageRangeFromDictionary:claims.userAgeRange]
+                                        isLimited:YES];
 }
 
 + (NSDate *)expirationDateFromParameters:(NSDictionary *)parameters
@@ -293,19 +316,48 @@
     if (!error) {
       NSString *challenge = [FBSDKTypeUtility dictionary:state objectForKey:@"challenge" ofType:NSString.class];
       if (challenge.length > 0) {
-        return [FBSDKUtility URLDecode:state[@"challenge"]];
+        return [FBSDKUtility URLDecode:challenge];
       }
     }
   }
   return nil;
 }
 
++ (NSDateFormatter *)dateFormatter
+{
+  if (!_dateFormatter) {
+    _dateFormatter = NSDateFormatter.new;
+  }
+  return _dateFormatter;
+}
+
 // MARK: Test Helpers
+
+ #if DEBUG
+  #if FBSDKTEST
+
++ (id<FBSDKProfileProviding>)profileFactory
+{
+  return _profileFactory;
+}
+
++ (void)setProfileFactory:(id<FBSDKProfileProviding>)factory
+{
+  _profileFactory = factory;
+}
 
 - (FBSDKLoginCompletionParameters *)parameters
 {
   return _parameters;
 }
+
++ (void)reset
+{
+  _profileFactory = [FBSDKProfileFactory new];
+}
+
+  #endif
+ #endif
 
 @end
 

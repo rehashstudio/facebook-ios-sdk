@@ -22,8 +22,12 @@
 
 #ifdef BUCK
  #import <FBSDKLoginKit+Internal/FBSDKNonceUtility.h>
+ #import <FBSDKLoginKit+Internal/FBSDKPermission.h>
+ #import <FBSDKLoginKit+Internal/FBSDKProfileFactory.h>
 #else
  #import "FBSDKNonceUtility.h"
+ #import "FBSDKPermission.h"
+ #import "FBSDKProfileFactory.h"
 #endif
 
 @class FBSDKAuthenticationTokenClaims;
@@ -64,12 +68,16 @@ NS_ASSUME_NONNULL_BEGIN
 @interface FBSDKAuthenticationToken (Testing)
 
 - (instancetype)initWithTokenString:(NSString *)tokenString
-                              nonce:(NSString *)nonce
-                             claims:(nullable FBSDKAuthenticationTokenClaims *)claims
-                                jti:(NSString *)jti;
+                              nonce:(NSString *)nonce;
 
-+ (void)setCurrentAuthenticationToken:(nullable FBSDKAuthenticationToken *)token
-               shouldPostNotification:(BOOL)shouldPostNotification;
++ (void)setCurrentAuthenticationToken:(nullable FBSDKAuthenticationToken *)token;
+
+@end
+
+@interface FBSDKDeviceLoginManagerResult (Testing)
+
+- (instancetype)initWithToken:(nullable FBSDKAccessToken *)token
+                  isCancelled:(BOOL)cancelled;
 
 @end
 

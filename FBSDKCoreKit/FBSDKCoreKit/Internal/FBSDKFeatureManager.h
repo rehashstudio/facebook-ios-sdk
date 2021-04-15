@@ -18,6 +18,8 @@
 
 #import <Foundation/Foundation.h>
 
+@protocol FBSDKGateKeeperManaging;
+
 NS_ASSUME_NONNULL_BEGIN
 
 /**
@@ -60,8 +62,6 @@ typedef NS_ENUM(NSUInteger, FBSDKFeature)
   FBSDKFeatureCrashReport = 0x00020100,
   FBSDKFeatureCrashShield = 0x00020101,
   FBSDKFeatureErrorReport = 0x00020200,
-  /** Monitoring */
-  FBSDKFeatureMonitoring = 0x00030000,
 
   // Features in LoginKit
   /** Essential of LoginKit */
@@ -69,22 +69,25 @@ typedef NS_ENUM(NSUInteger, FBSDKFeature)
 
   // Features in ShareKit
   /** Essential of ShareKit */
-  FBDSDKFeatureShare = 0x02000000,
+  FBSDKFeatureShare = 0x02000000,
 
   // Features in GamingServicesKit
   /** Essential of GamingServicesKit */
-  FBDSDKFeatureGamingServices = 0x03000000,
+  FBSDKFeatureGamingServices = 0x03000000,
 
 } NS_SWIFT_NAME(SDKFeature);
 
 typedef void (^FBSDKFeatureManagerBlock)(BOOL enabled);
 
+NS_SWIFT_NAME(FeatureManager)
 @interface FBSDKFeatureManager : NSObject
 
-+ (void)checkFeature:(FBSDKFeature)feature
+@property (class, nonatomic, strong, readonly) FBSDKFeatureManager *shared;
+
+- (BOOL)isEnabled:(FBSDKFeature)feature;
+- (void)checkFeature:(FBSDKFeature)feature
      completionBlock:(FBSDKFeatureManagerBlock)completionBlock;
-+ (BOOL)isEnabled:(FBSDKFeature)feature;
-+ (void)disableFeature:(NSString *)featureName;
+- (void)disableFeature:(NSString *)featureName;
 
 @end
 

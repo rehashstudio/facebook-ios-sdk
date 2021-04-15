@@ -37,6 +37,7 @@
 @class FBSDKAccessToken;
 @class FBSDKLoginCompletionParameters;
 @class FBSDKLoginManagerLogger;
+@class FBSDKPermission;
 
 /**
  Success Block
@@ -54,13 +55,14 @@ typedef NS_ENUM(NSInteger, FBSDKLoginManagerState) {
 
 @interface FBSDKLoginManager () <FBSDKURLOpening>
 @property (nonatomic, weak) UIViewController *fromViewController;
-@property (nonatomic, readonly) NSSet *requestedPermissions;
+@property (nonatomic, readonly) NSSet<FBSDKPermission *> *requestedPermissions;
 @property (nonatomic, strong) FBSDKLoginManagerLogger *logger;
+@property (nonatomic, strong) FBSDKLoginConfiguration *config;
 @property (nonatomic) FBSDKLoginManagerState state;
 @property (nonatomic) BOOL usedSFAuthSession;
 
-// for testing only
 @property (nonatomic, readonly, copy) NSString *loadExpectedChallenge;
+@property (nonatomic, readonly, copy) NSString *loadExpectedNonce;
 
 - (void)completeAuthentication:(FBSDKLoginCompletionParameters *)parameters expectChallenge:(BOOL)expectChallenge;
 
@@ -68,7 +70,9 @@ typedef NS_ENUM(NSInteger, FBSDKLoginManagerState) {
 
 // made available for testing only
 - (NSDictionary *)logInParametersWithConfiguration:(FBSDKLoginConfiguration *)configuration
-                               serverConfiguration:(FBSDKServerConfiguration *)serverConfiguration;
+                               serverConfiguration:(FBSDKServerConfiguration *)serverConfiguration
+                                            logger:(FBSDKLoginManagerLogger *)logger
+                                        authMethod:(NSString *)authMethod;
 // made available for testing only
 - (void)validateReauthentication:(FBSDKAccessToken *)currentToken withResult:(FBSDKLoginManagerLoginResult *)loginResult;
 

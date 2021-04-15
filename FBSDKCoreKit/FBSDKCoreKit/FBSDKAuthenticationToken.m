@@ -17,14 +17,9 @@
 // CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #import "FBSDKAuthenticationToken.h"
+#import "FBSDKAuthenticationToken+Internal.h"
 
 #import <Foundation/Foundation.h>
-
-#if SWIFT_PACKAGE
-@import FBSDKCoreKit;
-#else
- #import <FBSDKCoreKit/FBSDKCoreKit.h>
-#endif
 
 #ifdef FBSDKCOCOAPODS
  #import <FBSDKCoreKit/FBSDKCoreKit+Internal.h>
@@ -35,39 +30,41 @@
 #import "FBSDKAuthenticationTokenClaims.h"
 
 static FBSDKAuthenticationToken *g_currentAuthenticationToken;
+static id<FBSDKTokenCaching> g_tokenCache;
 
 NSString *const FBSDKAuthenticationTokenTokenStringCodingKey = @"FBSDKAuthenticationTokenTokenStringCodingKey";
 NSString *const FBSDKAuthenticationTokenNonceCodingKey = @"FBSDKAuthenticationTokenNonceCodingKey";
-NSString *const FBSDKAuthenticationTokenJtiCodingKey = @"FBSDKAuthenticationTokenJtiCodingKey";
+NSString *const FBSDKAuthenticationTokenGraphDomainCodingKey = @"FBSDKAuthenticationTokenGraphDomainCodingKey";
+
+@interface FBSDKAuthenticationTokenClaims (Internal)
+
++ (nullable FBSDKAuthenticationTokenClaims *)claimsFromEncodedString:(NSString *)encodedClaims nonce:(NSString *)expectedNonce;
+
+@end
 
 @implementation FBSDKAuthenticationToken
 {
-  FBSDKAuthenticationTokenClaims *_claims;
   NSString *_jti;
 }
 
 - (instancetype)initWithTokenString:(NSString *)tokenString
                               nonce:(NSString *)nonce
-                             claims:(nullable FBSDKAuthenticationTokenClaims *)claims
-{
-  return [self initWithTokenString:tokenString
-                             nonce:nonce
-                            claims:claims
-                               jti:claims.jti];
-}
-
-- (instancetype)initWithTokenString:(NSString *)tokenString
-                              nonce:(NSString *)nonce
-                             claims:(nullable FBSDKAuthenticationTokenClaims *)claims
-                                jti:(NSString *)jti
+                        graphDomain:(NSString *)graphDomain
 {
   if ((self = [super init])) {
     _tokenString = tokenString;
     _nonce = nonce;
-    _claims = claims;
-    _jti = jti;
+    _graphDomain = graphDomain;
   }
   return self;
+}
+
+- (instancetype)initWithTokenString:(NSString *)tokenString
+                              nonce:(NSString *)nonce
+{
+  return [self initWithTokenString:tokenString
+                             nonce:nonce
+                       graphDomain:@"facebook"];
 }
 
 + (nullable FBSDKAuthenticationToken *)currentAuthenticationToken
@@ -77,33 +74,39 @@ NSString *const FBSDKAuthenticationTokenJtiCodingKey = @"FBSDKAuthenticationToke
 
 + (void)setCurrentAuthenticationToken:(FBSDKAuthenticationToken *)token
 {
-  [self setCurrentAuthenticationToken:token shouldPostNotification:YES];
-}
-
-+ (void)setCurrentAuthenticationToken:(FBSDKAuthenticationToken *)token
-               shouldPostNotification:(BOOL)shouldPostNotification
-{
   if (token != g_currentAuthenticationToken) {
     g_currentAuthenticationToken = token;
-    [[self tokenCache] setAuthenticationToken:token];
+    self.tokenCache.authenticationToken = token;
   }
 }
 
-- (NSString *)jti
+- (FBSDKAuthenticationTokenClaims *)claims
 {
-  return _jti;
+  NSArray *segments = [_tokenString componentsSeparatedByString:@"."];
+  if (segments.count != 3) {
+    return nil;
+  }
+  NSString *encodedClaims = [FBSDKTypeUtility array:segments objectAtIndex:1];
+  return [FBSDKAuthenticationTokenClaims claimsFromEncodedString:encodedClaims nonce:_nonce];
 }
 
-- (nullable FBSDKAuthenticationTokenClaims *)claims
-{
-  return _claims;
-}
-
-#pragma mark Storage
+#pragma mark - Storage
 
 + (id<FBSDKTokenCaching>)tokenCache
 {
-  return FBSDKSettings.tokenCache;
+  return g_tokenCache;
+}
+
++ (void)setTokenCache:(id<FBSDKTokenCaching>)cache
+{
+  if (g_tokenCache != cache) {
+    g_tokenCache = cache;
+  }
+}
+
++ (void)resetTokenCache
+{
+  g_tokenCache = nil;
 }
 
 + (BOOL)supportsSecureCoding
@@ -115,27 +118,39 @@ NSString *const FBSDKAuthenticationTokenJtiCodingKey = @"FBSDKAuthenticationToke
 {
   NSString *tokenString = [decoder decodeObjectOfClass:NSString.class forKey:FBSDKAuthenticationTokenTokenStringCodingKey];
   NSString *nonce = [decoder decodeObjectOfClass:NSString.class forKey:FBSDKAuthenticationTokenNonceCodingKey];
-  NSString *jti = [decoder decodeObjectOfClass:NSString.class forKey:FBSDKAuthenticationTokenJtiCodingKey];
+  NSString *graphDomain = [decoder decodeObjectOfClass:NSString.class forKey:FBSDKAuthenticationTokenGraphDomainCodingKey];
 
-  return [self initWithTokenString:tokenString nonce:nonce claims:nil jti:jti];
+  return [self initWithTokenString:tokenString
+                             nonce:nonce
+                       graphDomain:graphDomain];
 }
 
 - (void)encodeWithCoder:(NSCoder *)encoder
 {
   [encoder encodeObject:self.tokenString forKey:FBSDKAuthenticationTokenTokenStringCodingKey];
   [encoder encodeObject:self.nonce forKey:FBSDKAuthenticationTokenNonceCodingKey];
-  [encoder encodeObject:_jti forKey:FBSDKAuthenticationTokenJtiCodingKey];
+  [encoder encodeObject:_graphDomain forKey:FBSDKAuthenticationTokenGraphDomainCodingKey];
+}
+
+#pragma mark - NSCopying
+
+- (id)copyWithZone:(NSZone *)zone
+{
+  // we're immutable.
+  return self;
 }
 
 #pragma mark - Test methods
 
 #if DEBUG
+ #if FBSDKTEST
 
 + (void)resetCurrentAuthenticationTokenCache
 {
   g_currentAuthenticationToken = nil;
 }
 
+ #endif
 #endif
 
 @end

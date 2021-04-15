@@ -28,13 +28,15 @@
 #import "FBSDKServerConfigurationManager.h"
 #import "FBSDKTestCase.h"
 
+@interface FBSDKGraphRequestConnection (RestrictiveDataFilterTesting)
+
++ (void)resetCanMakeRequests;
+
+@end
+
 typedef void (^FBSDKSKAdNetworkReporterBlock)(void);
 @interface FBSDKSKAdNetworkReporter (Testing)
 + (void)_loadConfigurationWithBlock:(FBSDKSKAdNetworkReporterBlock)block;
-@end
-
-@interface FBSDKAppEvents (Testing)
-@property (nonatomic, assign) BOOL disableTimer;
 @end
 
 @interface FBSDKRestrictiveDataFilterManager ()
@@ -52,6 +54,8 @@ typedef void (^FBSDKSKAdNetworkReporterBlock)(void);
 - (void)setUp
 {
   self.shouldAppEventsMockBePartial = YES;
+  // Prevents network requests from being made
+  [FBSDKGraphRequestConnection resetCanMakeRequests];
 
   [super setUp];
 
@@ -75,9 +79,6 @@ typedef void (^FBSDKSKAdNetworkReporterBlock)(void);
                                                    error:nil];
   [self stubAllocatingGraphRequestConnection];
   [self stubLoadingAdNetworkReporterConfiguration];
-
-  [self.appEventsMock setDisableTimer:YES];
-
   [FBSDKRestrictiveDataFilterManager enable];
 }
 

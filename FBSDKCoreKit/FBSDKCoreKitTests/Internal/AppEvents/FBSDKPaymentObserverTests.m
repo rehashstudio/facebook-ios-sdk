@@ -25,6 +25,7 @@
 @interface FBSDKPaymentObserver ()
 
 + (FBSDKPaymentObserver *)singleton;
++ (void)resetSingletonToken;
 - (void)paymentQueue:(SKPaymentQueue *)queue updatedTransactions:(NSArray<SKPaymentTransaction *> *)transactions;
 - (void)handleTransaction:(SKPaymentTransaction *)transaction;
 
@@ -35,6 +36,13 @@
 @end
 
 @implementation FBSDKPaymentObserverTests
+
+- (void)tearDown
+{
+  [FBSDKPaymentObserver resetSingletonToken];
+
+  [super tearDown];
+}
 
 - (void)testPaymentObserverAddRemove
 {
@@ -58,12 +66,15 @@
   id partialMockObserver = [OCMockObject partialMockForObject:[FBSDKPaymentObserver singleton]];
 
   NSMutableArray<SKPaymentTransaction *> *transactions = [NSMutableArray array];
-  SKPaymentTransaction *transaction = [[SKPaymentTransaction alloc] init];
+  SKPaymentTransaction *transaction = [SKPaymentTransaction new];
   [transactions addObject:transaction];
 
   [[partialMockObserver expect] handleTransaction:[OCMArg any]];
   [partialMockObserver paymentQueue:mockQueue updatedTransactions:transactions];
   [partialMockObserver verify];
+
+  [partialMockObserver stopMocking];
+  partialMockObserver = nil;
 }
 
 @end

@@ -28,10 +28,13 @@
   #import "FBSDKCoreKit+Internal.h"
  #endif
  #import "FBSDKGameRequestFrictionlessRecipientCache.h"
+ #import "FBSDKGameRequestURLProvider.h"
  #import "FBSDKShareConstants.h"
  #import "FBSDKShareUtility.h"
 
-@interface FBSDKGameRequestDialog () <FBSDKWebDialogDelegate>
+ #define FBSDK_APP_REQUEST_METHOD_NAME @"apprequests"
+
+@interface FBSDKGameRequestDialog () <FBSDKWebDialogDelegate, FBSDKURLOpening>
 @end
 
 @implementation FBSDKGameRequestDialog
@@ -40,8 +43,6 @@
   FBSDKWebDialog *_webDialog;
 }
 
- #define FBSDK_APP_REQUEST_METHOD_NAME @"apprequests"
-
  #pragma mark - Class Methods
 
 static FBSDKGameRequestFrictionlessRecipientCache *_recipientCache = nil;
@@ -49,13 +50,13 @@ static FBSDKGameRequestFrictionlessRecipientCache *_recipientCache = nil;
 + (void)initialize
 {
   if (self == [FBSDKGameRequestDialog class]) {
-    _recipientCache = [[FBSDKGameRequestFrictionlessRecipientCache alloc] init];
+    _recipientCache = [FBSDKGameRequestFrictionlessRecipientCache new];
   }
 }
 
 + (instancetype)dialogWithContent:(FBSDKGameRequestContent *)content delegate:(id<FBSDKGameRequestDialogDelegate>)delegate
 {
-  FBSDKGameRequestDialog *dialog = [[self alloc] init];
+  FBSDKGameRequestDialog *dialog = [self new];
   dialog.content = content;
   dialog.delegate = delegate;
   return dialog;
@@ -64,8 +65,82 @@ static FBSDKGameRequestFrictionlessRecipientCache *_recipientCache = nil;
 + (instancetype)showWithContent:(FBSDKGameRequestContent *)content delegate:(id<FBSDKGameRequestDialogDelegate>)delegate
 {
   FBSDKGameRequestDialog *dialog = [self dialogWithContent:content delegate:delegate];
-  [dialog show];
+  NSString *graphDomain = [FBSDKUtility getGraphDomainFromToken];
+  if ([graphDomain isEqualToString:@"gaming"] && [FBSDKInternalUtility isFacebookAppInstalled]) {
+    [dialog launchGameRequestDialogWithGameRequestContent:content delegate:delegate];
+  } else {
+    [dialog show];
+  }
   return dialog;
+}
+
+- (void)launchGameRequestDialogWithGameRequestContent:(FBSDKGameRequestContent *)requestContent delegate:(id<FBSDKGameRequestDialogDelegate>)delegate;
+{
+  __weak typeof(self) weakSelf = self;
+  if ([FBSDKAccessToken currentAccessToken] == nil) {
+    return;
+  }
+
+  NSDictionary *contentDictionary = [self _convertGameRequestContentToDictionaryV2:_content];
+  [[FBSDKBridgeAPI sharedInstance]
+   openURL:[FBSDKGameRequestURLProvider createDeepLinkURLWithQueryDictionary:contentDictionary]
+   sender:weakSelf
+   handler:^(BOOL success, NSError *_Nullable error) {
+     if (!success) {}
+   }];
+}
+
+ #pragma mark - FBSDKURLOpening
+- (BOOL)application:(UIApplication *)application
+            openURL:(NSURL *)url
+  sourceApplication:(NSString *)sourceApplication
+         annotation:(id)annotation
+{
+  const BOOL isGamingUrl =
+  [self
+   canOpenURL:url
+   forApplication:application
+   sourceApplication:sourceApplication
+   annotation:annotation];
+
+  if (isGamingUrl) {
+    [self completeSuccessfully];
+  }
+
+  return isGamingUrl;
+}
+
+- (BOOL) canOpenURL:(NSURL *)url
+     forApplication:(UIApplication *)application
+  sourceApplication:(NSString *)sourceApplication
+         annotation:(id)annotation
+{
+  return
+  [self
+   isValidCallbackURL:url];
+}
+
+- (void)applicationDidBecomeActive:(UIApplication *)application
+{
+  [self completeSuccessfully];
+}
+
+- (BOOL)isAuthenticationURL:(NSURL *)url
+{
+  return false;
+}
+
+- (void)completeSuccessfully
+{
+  // _completionHandler(true, nil);
+}
+
+ #pragma mark - Helpers
+
+- (BOOL)isValidCallbackURL:(NSURL *)url
+{
+  return
+  [url.scheme hasPrefix:[NSString stringWithFormat:@"fb%@", [FBSDKSettings appID]]];
 }
 
  #pragma mark - Object Lifecycle
@@ -73,7 +148,7 @@ static FBSDKGameRequestFrictionlessRecipientCache *_recipientCache = nil;
 - (instancetype)init
 {
   if ((self = [super init])) {
-    _webDialog = [[FBSDKWebDialog alloc] init];
+    _webDialog = [FBSDKWebDialog new];
     _webDialog.delegate = self;
     _webDialog.name = FBSDK_APP_REQUEST_METHOD_NAME;
   }
@@ -102,6 +177,7 @@ static FBSDKGameRequestFrictionlessRecipientCache *_recipientCache = nil;
     [_delegate gameRequestDialog:self didFailWithError:error];
     return NO;
   }
+
   if (![self validateWithError:&error]) {
     [_delegate gameRequestDialog:self didFailWithError:error];
     return NO;
@@ -113,15 +189,7 @@ static FBSDKGameRequestFrictionlessRecipientCache *_recipientCache = nil;
     return NO;
   }
 
-  NSMutableDictionary *parameters = [[NSMutableDictionary alloc] init];
-  [FBSDKTypeUtility dictionary:parameters setObject:[content.recipients componentsJoinedByString:@","] forKey:@"to"];
-  [FBSDKTypeUtility dictionary:parameters setObject:content.message forKey:@"message"];
-  [FBSDKTypeUtility dictionary:parameters setObject:[self _actionTypeNameForActionType:content.actionType] forKey:@"action_type"];
-  [FBSDKTypeUtility dictionary:parameters setObject:content.objectID forKey:@"object_id"];
-  [FBSDKTypeUtility dictionary:parameters setObject:[self _filtersNameForFilters:content.filters] forKey:@"filters"];
-  [FBSDKTypeUtility dictionary:parameters setObject:[content.recipientSuggestions componentsJoinedByString:@","] forKey:@"suggestions"];
-  [FBSDKTypeUtility dictionary:parameters setObject:content.data forKey:@"data"];
-  [FBSDKTypeUtility dictionary:parameters setObject:content.title forKey:@"title"];
+  NSMutableDictionary *parameters = [self _convertGameRequestContentToDictionaryV1:content];
 
   // check if we are sending to a specific set of recipients.  if we are and they are all frictionless recipients, we
   // can perform this action without displaying the web dialog
@@ -159,6 +227,36 @@ static FBSDKGameRequestFrictionlessRecipientCache *_recipientCache = nil;
                                                    message:nil];
   }
   return NO;
+}
+
+- (NSMutableDictionary *)_convertGameRequestContentToDictionaryV1:(FBSDKGameRequestContent *)content
+{
+  NSMutableDictionary *parameters = [NSMutableDictionary new];
+  [FBSDKTypeUtility dictionary:parameters setObject:[content.recipients componentsJoinedByString:@","] forKey:@"to"];
+  [FBSDKTypeUtility dictionary:parameters setObject:content.message forKey:@"message"];
+  [FBSDKTypeUtility dictionary:parameters setObject:[FBSDKGameRequestURLProvider actionTypeNameForActionType:content.actionType] forKey:@"action_type"];
+  [FBSDKTypeUtility dictionary:parameters setObject:content.objectID forKey:@"object_id"];
+  [FBSDKTypeUtility dictionary:parameters setObject:content.data forKey:@"data"];
+  [FBSDKTypeUtility dictionary:parameters setObject:content.title forKey:@"title"];
+
+  [FBSDKTypeUtility dictionary:parameters setObject:[FBSDKGameRequestURLProvider filtersNameForFilters:content.filters] forKey:@"filters"];
+  [FBSDKTypeUtility dictionary:parameters setObject:[content.recipientSuggestions componentsJoinedByString:@","] forKey:@"suggestions"];
+  return parameters;
+}
+
+- (NSMutableDictionary *)_convertGameRequestContentToDictionaryV2:(FBSDKGameRequestContent *)content
+{
+  NSMutableDictionary *parameters = [NSMutableDictionary new];
+  [FBSDKTypeUtility dictionary:parameters setObject:[content.recipients componentsJoinedByString:@","] forKey:@"to"];
+  [FBSDKTypeUtility dictionary:parameters setObject:content.message forKey:@"message"];
+  [FBSDKTypeUtility dictionary:parameters setObject:[FBSDKGameRequestURLProvider actionTypeNameForActionType:content.actionType] forKey:@"action_type"];
+  [FBSDKTypeUtility dictionary:parameters setObject:content.objectID forKey:@"object_id"];
+  [FBSDKTypeUtility dictionary:parameters setObject:content.data forKey:@"data"];
+  [FBSDKTypeUtility dictionary:parameters setObject:content.title forKey:@"title"];
+
+  [FBSDKTypeUtility dictionary:parameters setObject:[FBSDKGameRequestURLProvider filtersNameForFilters:content.filters] forKey:@"options"];
+  [FBSDKTypeUtility dictionary:parameters setObject:content.cta forKey:@"cta"];
+  return parameters;
 }
 
  #pragma mark - FBSDKWebDialogDelegate
@@ -257,7 +355,7 @@ static FBSDKGameRequestFrictionlessRecipientCache *_recipientCache = nil;
   [self _cleanUp];
 
   NSError *error = [FBSDKError errorWithCode:[FBSDKTypeUtility unsignedIntegerValue:results[@"error_code"]]
-                                     message:[FBSDKTypeUtility stringValue:results[@"error_message"]]];
+                                     message:[FBSDKTypeUtility coercedToStringValue:results[@"error_message"]]];
   if (!error.code) {
     // reformat "to[x]" keys into an array.
     int counter = 0;
@@ -323,45 +421,6 @@ static FBSDKGameRequestFrictionlessRecipientCache *_recipientCache = nil;
   if (error) {
     return;
   } else {}
-}
-
-- (NSString *)_actionTypeNameForActionType:(FBSDKGameRequestActionType)actionType
-{
-  switch (actionType) {
-    case FBSDKGameRequestActionTypeNone: {
-      return nil;
-    }
-    case FBSDKGameRequestActionTypeSend: {
-      return @"send";
-    }
-    case FBSDKGameRequestActionTypeAskFor: {
-      return @"askfor";
-    }
-    case FBSDKGameRequestActionTypeTurn: {
-      return @"turn";
-    }
-    default: {
-      return nil;
-    }
-  }
-}
-
-- (NSString *)_filtersNameForFilters:(FBSDKGameRequestFilter)filters
-{
-  switch (filters) {
-    case FBSDKGameRequestFilterNone: {
-      return nil;
-    }
-    case FBSDKGameRequestFilterAppUsers: {
-      return @"app_users";
-    }
-    case FBSDKGameRequestFilterAppNonUsers: {
-      return @"app_non_users";
-    }
-    default: {
-      return nil;
-    }
-  }
 }
 
 @end

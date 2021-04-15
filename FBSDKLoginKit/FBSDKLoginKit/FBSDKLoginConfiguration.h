@@ -20,6 +20,8 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+@class FBSDKPermission;
+
 /// The login tracking preference to use for a login attempt. For more information on the differences between
 /// `enabled` and `limited` see: https://developers.facebook.com/docs/facebook-login/ios/limited-login/
 typedef NS_ENUM(NSUInteger, FBSDKLoginTracking)
@@ -40,7 +42,7 @@ NS_SWIFT_NAME(LoginConfiguration)
 @property (nonatomic, readonly) FBSDKLoginTracking tracking;
 
 /// The requested permissions for the login attempt. Defaults to an empty set.
-@property (nonatomic, readonly, copy) NSSet<NSString *> *requestedPermissions;
+@property (nonatomic, readonly, copy) NSSet<FBSDKPermission *> *requestedPermissions;
 
 - (instancetype)init NS_UNAVAILABLE;
 + (instancetype)new NS_UNAVAILABLE;
@@ -49,7 +51,7 @@ NS_SWIFT_NAME(LoginConfiguration)
  Attempts to initialize a new configuration with the expected parameters.
 
  @param permissions the requested permissions for a login attempt. Permissions must be an array of strings that do not contain whitespace.
- The only permissions allowed when the `loginTracking` is `.limited` are 'email' and 'public_profile'.
+ The only permissions allowed when the `loginTracking` is `.limited` are 'email', 'public_profile', 'gaming_profile' and 'gaming_user_picture'
  @param tracking the tracking preference to use for a login attempt.
  @param nonce an optional nonce to use for the login attempt. A valid nonce must be a non-empty string without whitespace.
  Creation of the configuration will fail if the nonce is invalid.
@@ -63,7 +65,7 @@ NS_REFINED_FOR_SWIFT;
  Attempts to initialize a new configuration with the expected parameters.
 
  @param permissions the requested permissions for the login attempt. Permissions must be an array of strings that do not contain whitespace.
-  The only permissions allowed when the `loginTracking` is `.limited` are 'email' and 'public_profile'.
+  The only permissions allowed when the `loginTracking` is `.limited` are 'email', 'public_profile', 'gaming_profile' and 'gaming_user_picture'
  @param tracking the tracking preference to use for a login attempt.
  */
 - (nullable instancetype)initWithPermissions:(NSArray<NSString *> *)permissions

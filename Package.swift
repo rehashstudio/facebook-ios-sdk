@@ -58,11 +58,13 @@ let package = Package(
             cSettings: [
                 .headerSearchPath("AppEvents"),
                 .headerSearchPath("AppEvents/Internal"),
+                .headerSearchPath("AppEvents/Internal/AAM"),
                 .headerSearchPath("AppEvents/Internal/Codeless"),
                 .headerSearchPath("AppEvents/Internal/ViewHierarchy/"),
                 .headerSearchPath("AppEvents/Internal/ML"),
                 .headerSearchPath("AppEvents/Internal/Integrity"),
                 .headerSearchPath("AppEvents/Internal/EventDeactivation"),
+                .headerSearchPath("AppEvents/Internal/SKAdNetwork"),
                 .headerSearchPath("AppEvents/Internal/SuggestedEvents"),
                 .headerSearchPath("AppLink"),
                 .headerSearchPath("AppLink/Internal"),
@@ -74,6 +76,7 @@ let package = Package(
                 .headerSearchPath("Internal/Cryptography"),
                 .headerSearchPath("Internal/Device"),
                 .headerSearchPath("Internal/ErrorRecovery"),
+                .headerSearchPath("Internal/FeatureManager"),
                 .headerSearchPath("Internal/Instrument"),
                 .headerSearchPath("Internal/Instrument/CrashReport"),
                 .headerSearchPath("Internal/Instrument/ErrorReport"),
@@ -81,7 +84,8 @@ let package = Package(
                 .headerSearchPath("Internal/Network"),
                 .headerSearchPath("Internal/ServerConfiguration"),
                 .headerSearchPath("Internal/TokenCaching"),
-                .headerSearchPath("Internal/UI")
+                .headerSearchPath("Internal/UI"),
+                .headerSearchPath("Internal/WebDialog")
             ],
             linkerSettings: [
                 .linkedFramework("Accelerate")

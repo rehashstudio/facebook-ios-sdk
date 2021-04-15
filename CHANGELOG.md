@@ -9,7 +9,122 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Important
 
-[Full Changelog](https://github.com/facebook/facebook-ios-sdk/compare/v8.2.0...HEAD)
+[Full Changelog](https://github.com/facebook/facebook-ios-sdk/compare/v9.2.0...HEAD)
+
+## 9.2.0
+
+### Added
+
+- Added Limited Login support for `user_friends`, `user_birthday` and `user_age_range` permissions under public beta.
+- Shared Profile instance will be populated with `birthday` and `ageRange` fields using the claims from the `AuthenticationToken`. (NOTE: birthday and ageRange fields are in public beta mode)
+- Added a convenience initializer to `Profile` as part of fixing a bug where upgrading from limited to regular login would fail to fetch the profile using the newly available access token.
+- `GamingServicesKit` added an observer class where if developers set the delegate we will trigger the delegate method with a `GamingPayload` object if any urls contain gaming payload data. (NOTE: This feature is currently under development)
+
+### Fixed
+
+**Performance Improvements**
+
+- Added in memory cache for carrier and timezone so they are not dynamically loaded on every `didBecomeActive`
+- Added cached `ASIdentifierManager` to avoid dynamic loading on every `didBecomeActive`
+- Backgrounds the expensive property creation that happens during AppEvents class initialization.
+- Added thread safety for incrementing the serial number used by the logging utility.
+- Added early return to Access Token to avoid unnecessary writes to keychain which can cause performance issues.
+
+**Bug Fixes**
+
+- Fixed using CocoaPods with the `generate_multiple_pod_projects` flag. [#1707](https://github.com/facebook/facebook-ios-sdk/issues/1707)
+- Adhere to flush behavior for logging completion. Will now only flush events if the flush behavior is `explicitOnly`.
+- Static library binaries are built with `BITCODE_GENERATION_MODE = bitcode` to fix errors where Xcode is unable to build apps with bitcode enabled. [#1698](https://github.com/facebook/facebook-ios-sdk/pull/1698)
+
+### Deprecated
+
+- `TestUsersManager`. The APIs that back this convenience type still exist but there is no compelling reason to have this be part of the core SDK. See the [commit message](https://github.com/facebook/facebook-ios-sdk/commit/441f7fcefadd36218b81fbca0a5d406ceb86a2da) for more on the rationale.
+
+### Removed
+
+- Internal type `AudioResourceLoader`.
+
+[2021-04-06](https://github.com/facebook/facebook-ios-sdk/releases/tag/v9.2.0) |
+[Full Changelog](https://github.com/facebook/facebook-ios-sdk/compare/v9.1.0...v9.2.0)
+
+## 9.1.0
+
+### Added
+
+- `friendIDs` property added to `FBSDKProfile` (NOTE: We are building out the `friendIDs` property in Limited Login with the intention to roll it out in early spring)
+- `FBSDKProfile` initializer that includes optional `friendIDs` argument
+- `claims` property of type `FBSDKAuthenticationTokenClaims` added to `FBSDKAuthenticationToken`
+
+### Fixed
+
+- Build Warnings for SPM with Xcode 12.5 Beta 2 [#1661](https://github.com/facebook/facebook-ios-sdk/pull/1661)
+- Memory leak in `FBSDKGraphErrorRecoveryProcessor`
+- Name conflict for Swift version of `FBSDKURLSessionTask`
+- Avoids call to `AppEvents` singleton when setting overriding app ID [#1647](https://github.com/facebook/facebook-ios-sdk/pull/1647)
+- CocoaPods now compiles `FBSDKDynamicFrameworkLoader` with ARC.
+- CocoaPods now uses static frameworks as the prebuilt libraries for the aggregate FacebookSDK podspec
+- App Events use the correct token if none have been provided manually ([@ptxmac](https://github.com/ptxmac)[#1670](https://github.com/facebook/facebook-ios-sdk/pull/1670)
+
+### Deprecated
+
+- `FBSDKGraphErrorRecoveryProcessor`'s `delegate` property
+- `FBSDKGraphErrorRecoveryProcessor`'s `didPresentErrorWithRecovery:contextInfo:` method
+- `FBSDKAppLinkReturnToRefererView`
+- `FBSDKAppLinkReturnToRefererController`
+
+### Removed
+
+- Internal type `FBSDKErrorRecoveryAttempter`
+
+[2021-02-25](https://github.com/facebook/facebook-ios-sdk/releases/tag/v9.1.0) |
+[Full Changelog](https://github.com/facebook/facebook-ios-sdk/compare/v9.0.1...v9.1.0)
+
+## 9.0.1
+
+### Added
+
+- Add control support for the key FacebookSKAdNetworkReportEnabled in the info.plist
+- Add APIs to control SKAdNetwork Report
+
+### Fixed
+
+- Fix deadlock issue between SKAdNetwork Report and AAM/Codeless
+- Fix default ATE sync for the first app launch
+- Fix build error caused by LoginButton nonce property ([@kmcbride](https://github.com/kmcbride) in [#1616](https://github.com/facebook/facebook-ios-sdk/pull/1616))
+- Fix crash on FBSDKWebViewAppLinkResolverWebViewDelegate ([@Kry256](https://github.com/Kry256) in [#1624](https://github.com/facebook/facebook-ios-sdk/pull/1624))
+- Fix XCFrameworks build issue (#1628)
+- Fix deadlock when AppEvents ActivateApp is called without initializing the SDK (#1636)
+
+[2021-02-02](https://github.com/facebook/facebook-ios-sdk/releases/tag/v9.0.1) |
+[Full Changelog](https://github.com/facebook/facebook-ios-sdk/compare/v9.0.0...v9.0.1)
+
+## 9.0.0
+
+We have a number of exciting changes in this release!
+For more information on the v9 release please read our associated blog [post](https://developers.facebook.com/blog/post/2021/01/19/introducing-facebook-platform-sdk-version-9/)!
+
+### Added
+
+- Swift Package Manager now supports Mac Catalyst
+- Limited Login. Please read the blog [post](https://developers.facebook.com/blog/post/2021/01/19/facebook-login-updates-new-limited-data-mode) and [docs](https://developers.facebook.com/docs/facebook-login/ios/limited-login/) for a general overview and implementation details.
+
+### Changed
+
+- The default Graph API version is updated to v9.0
+- The `linkURL` property of `FBSDKProfile` will only be populated if the user has granted the `user_link` permission.
+- FBSDKGamingServicesKit will no longer embed FBSDKCoreKit as a dependency. This may affect you if you are manually integrating pre-built binaries.
+- The aggregate CocoaPod `FacebookSDK` now vendors XCFrameworks. Note: this may cause conflicts with other CocoaPods that have dependencies on the our libraries, ex: Audience Network. If you encounter a conflict it is easy to resolve by using one or more of the individual library pods instead of the aggregate pod.
+
+### Removed
+
+- The `autoInitEnabled` option is removed from the SDK. From here on, developers are required to initialize the SDK explicitly with the `initializeSDK` method or implicitly by calling it in `applicationDidFinishLaunching`.
+
+### Fixed
+
+- Swift Package Manager Mac Catalyst support [#1577](https://github.com/facebook/facebook-ios-sdk/issues/1577)
+
+[2021-01-05](https://github.com/facebook/facebook-ios-sdk/releases/tag/v9.0.0) |
+[Full Changelog](https://github.com/facebook/facebook-ios-sdk/compare/v8.2.0...v9.0.0)
 
 ## 8.2.0
 
